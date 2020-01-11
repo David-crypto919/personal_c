@@ -66,16 +66,13 @@ int main()
         initFont();
         TicTacToe_launch();
         break;
-
     case 2:
         initFont();
         TwoZeroFourEight_launch();
-        break;
-        
+        break;      
     case 3:
         HangMan_launch();
-        break;
-        
+        break;      
     default:
         break;
     }
