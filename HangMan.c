@@ -20,8 +20,10 @@
 
 #define UNDERLINE '_'
 #define NUM_WORDS 7
+#define FAIL -1
+#define SUCESS 0
 
-static inline void init(char** string, char** array, char** used_array, int* len, bool* dyn);
+static inline int init(char** string, char** array, char** used_array, int* len, bool* dyn);
 static bool wasSaid(char* used_array, char charac, int i);
 static inline int getRandom(void);
 static inline char* randomWord(int* len);
@@ -29,7 +31,7 @@ static inline char* readString(int* len);
 static void initArray(char** array, int len);
 static inline char* allocArray(int len);
 static inline char* __allocArray(void);
-static inline void reallocUsed(char** used_array, int i);
+static inline int reallocUsed(char** used_array, int i);
 static inline void freeMemory(char* string, char* array, char* used_array, bool dyn);
 static bool processMove(char** array, char* string, int len, char charac);
 static bool checkWin(char* array, int len);
@@ -37,14 +39,17 @@ static inline void gameOver(char* array, int life);
 static inline void __sleep(unsigned int x);
 static void display(char* array, char* used_array, int len, int i, int life);
 
-void HangMan_launch(void)
+int HangMan_launch(void)
 {
     char* array, * string, * used_array;
     char charac;
-    int len, life = 7, i = 0;
-    bool ret, dyn = true;
+    int len, life = 7;
+    int ret, i = 0;
+    bool dyn = true;
 
-    init(&string, &array, &used_array, &len, &dyn);
+    ret = init(&string, &array, &used_array, &len, &dyn);
+    if (ret)
+        return FAIL;
 
     display(array, used_array, len, i, life);
     ++i;
@@ -52,7 +57,9 @@ void HangMan_launch(void)
         (void)scanf(" %c", &charac);
         ret = wasSaid(used_array, charac, i);
         if (!ret) {
-            reallocUsed(&used_array, i);
+            ret = reallocUsed(&used_array, i);
+            if (ret)
+                return FAIL;
             used_array[i - 1] = charac;
             ret = processMove(&array, string, len, charac);
             if (!ret)
@@ -67,12 +74,15 @@ void HangMan_launch(void)
     gameOver(string, life);
 
     freeMemory(string, array, used_array, dyn);
+
+    return SUCESS;
 }
 
-static inline void init(char** string, char** array, char** used_array, int* len, bool* dyn)
+static inline int init(char** string, char** array, char** used_array, int* len, bool* dyn)
 {
     char carac;
 
+    clear();
     printf("Do you want to play vs your friend (F) or do you want a random (R) word?\n");
     (void)scanf(" %c", &carac);
 
@@ -80,6 +90,8 @@ static inline void init(char** string, char** array, char** used_array, int* len
 
     if (carac == 'F' || carac == 'f') {
         *string = readString(len);
+        if (*string == NULL)
+            return FAIL;
         *dyn = true;
     }
     else {
@@ -88,7 +100,11 @@ static inline void init(char** string, char** array, char** used_array, int* len
     }
 
     *array = allocArray(*len);
+    if (*array == NULL)
+        return FAIL;
     *used_array = __allocArray();
+
+    return SUCESS;
 }
 
 static bool wasSaid(char* used_array, char charac, int i)
@@ -173,14 +189,16 @@ static inline char* __allocArray(void)
     return array;
 }
 
-static inline void reallocUsed(char** used_array, int i)
+static inline int reallocUsed(char** used_array, int i)
 {
     char* tmp;
 
     tmp = realloc(*used_array, i * sizeof(char));
     if (!tmp)
-        return;
+        return FAIL;
     *used_array = tmp;
+
+    return SUCESS;
 }
 
 static inline void freeMemory(char* string, char* array, char* used_array, bool dyn)

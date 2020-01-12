@@ -8,6 +8,8 @@
 #include "twozerofoureight.h"
 #include "hangman.h"
 
+#define FAIL -1
+
 #if defined(_WIN32) || defined(_WIN64)
 static inline int getFontSize(HANDLE windowHandle, COORD* size)
 {
@@ -53,7 +55,7 @@ static inline void initFont(void)
 
 int main()
 {
-	int x;
+	int x, ret;
 
 	printf("What game do you want to play?\n");
 	printf("1. for TicTacToe\n");
@@ -71,7 +73,9 @@ int main()
         TwoZeroFourEight_launch();
         break;      
     case 3:
-        HangMan_launch();
+        ret = HangMan_launch();
+        if (ret)
+            return FAIL;
         break;      
     default:
         break;
