@@ -39,10 +39,15 @@
 
 #define T 3
 #define MAXLINE 128
+
 #define THREADS 8
+
 #define FOUND 1
 #define FAIL -1
 #define TIED -2
+
+#define PC 0x1
+#define HARD 0x2
 
 #define RED "\x1b[31m"
 #define CYAN "\x1b[36m"
@@ -58,7 +63,8 @@ struct Move {
 
 // Global variables for further expansion if wanted
 int pc_carac;
-bool player, pc, hard;
+int flags;
+bool player;
 
 static int setMove(int pos);
 static int minMax(int depth, bool is_max);
@@ -88,6 +94,9 @@ static inline bool pcTurn(void);
 static inline int not_pcCarac(void);
 static inline void resetCount(int* count);
 static inline void increaseCount(int* count);
+static inline void setBit(int flag);
+static inline int testBit(int flag);
+static inline void resetBit(void);
 static void display(void);
 
 static int readHighscore(void)
@@ -96,7 +105,7 @@ static int readHighscore(void)
 	FILE* score;
 
 	score = fopen("score1.txt", "r+");
-	if (score == NULL) {
+	if (!score) {
 		printf("Can't open score file! Will make one...\n");
 		return -1;
 	}
@@ -116,7 +125,7 @@ static inline void writeHighscore(int x, int o, int ties)
 	FILE* score;
 
 	score = fopen("score1.txt", "w+");
-	if (score == NULL) {
+	if (!score) {
 		printf("Can't open score file!\n");
 		return;
 	}
@@ -139,6 +148,7 @@ static void init(int was_run)
 	char charac;
 
 	clear();
+	resetBit();
 
 	if (!was_run)
 		readHighscore();
@@ -146,18 +156,14 @@ static void init(int was_run)
 	printf("Do you want to play against the PC? 'Y' or 'N'\n");
 	(void)scanf(" %c", &charac);
 	if (charac == 'Y' || charac == 'y')
-		pc = true;
-	else
-		pc = false;
+		setBit(PC);
 
-	if (pc) {
+	if (testBit(PC)) {
 		printf("\nDo you want to play vs Easy or Hard AI?\n");
 		printf("Answer 'E' for Easy or 'H' for Hard\n");
 		(void)scanf(" %c", &charac);
 		if (charac == 'H' || charac == 'h')
-			hard = true;
-		else
-			hard = false;
+			setBit(HARD);
 	}
 
 	// Always X first
@@ -225,8 +231,12 @@ static int find_pcMove(void)
 
 	for (i = 0; i < THREADS; i++) {
 		pthread_join(tid[i], &ret);
-		if ((int)ret >= 0)
+		if ((int)ret >= 0) {
+			for (++i; i < THREADS; i++)
+				pthread_detach(tid[i]);
+			__sleep(10);
 			return (int)ret;
+		}
 	}
 
 	return randPos();
@@ -241,7 +251,7 @@ retry:
 		printf("\nEnter a number, %c: ", (player ? 'X' : '0'));
 
 	if (pcTurn())
-		if (hard)
+		if (testBit(HARD))
 			pos = allocHard_move();
 		else
 			pos = find_pcMove();
@@ -302,6 +312,11 @@ out:
 	printf("The winner is: %c\n", (player ? 'X' : '0'));
 
 tied:
+	for (++i; i < THREADS / 2 + 1; i++)
+		pthread_detach(tid[i]);
+
+	__sleep(10);
+
 	printf("Want to play again? Y or N\n");
 	(void)scanf(" %c", &again);
 	if (again == 'Y' || again == 'y') {
@@ -625,7 +640,7 @@ static inline int finalRes(int i, int j)
 
 static inline bool pcTurn(void)
 {
-	if (!pc)
+	if (!testBit(PC))
 		return false;
 	return player ? false : true;
 }
@@ -643,6 +658,21 @@ static inline void resetCount(int* count)
 static inline void increaseCount(int* count)
 {
 	++(*count);
+}
+
+static inline void setBit(int flag)
+{
+	flags |= flag;
+}
+
+static inline int testBit(int flag)
+{
+	return (flags & flag);
+}
+
+static inline void resetBit(void)
+{
+	flags = 0;
 }
 
 #if defined(_WIN32) || defined(_WIN64)

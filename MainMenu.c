@@ -7,6 +7,7 @@
 #include "tictactoe.h"
 #include "twozerofoureight.h"
 #include "hangman.h"
+#include "calendar.h"
 
 #define FAIL -1
 
@@ -57,10 +58,11 @@ int main()
 {
 	int x, ret;
 
-	printf("What game do you want to play?\n");
+	printf("What game do you want to open?\n");
 	printf("1. for TicTacToe\n");
 	printf("2. for 2048\n");
     printf("3. for HangMan\n");
+    printf("4. for Calendar\n");
 	(void)scanf("%d", &x);
 
     switch (x) {
@@ -76,7 +78,10 @@ int main()
         ret = HangMan_launch();
         if (ret)
             return FAIL;
-        break;      
+        break;
+    case 4:
+        Calendar_launch();
+        break;
     default:
         break;
     }
