@@ -40,15 +40,23 @@
 
 #define SIZE 128
 
+#define RESET "\x1b[0m"
+#define RED "\x1b[31m"
+#define GREEN "\x1b[32m"
+#define YELLOW "\x1b[33m"
+
 struct List {
-    int day;
-    char task[SIZE];
-    bool set;
+    struct Work* work_list;
 };
 
 struct Months {
-    struct List* list;
+    struct List* work_days;
     int days;
+};
+
+struct Work {
+    char task[SIZE];
+    bool set;
 };
 
 static struct Months* init(void);
@@ -61,6 +69,7 @@ static void readFile(struct Months* month);
 static void freeMem(struct Months* month);
 static inline int getCurrentDate(bool date);
 static void ClearInputBuffer(void);
+static inline void setColor(char* c);
 
 void Calendar_launch(void)
 {
@@ -94,7 +103,7 @@ void Calendar_launch(void)
 static struct Months* init(void)
 {
     struct Months* month;
-    int i, j;
+    int i, j, k;
 
     clear();
 
@@ -116,14 +125,21 @@ static struct Months* init(void)
     month[11].days = DEC;
 
     for (i = 0; i < MONTHS; i++) {
-        month[i].list = (struct List*)malloc(LISTS * sizeof(struct List));
-        if (!month[i].list)
+        month[i].work_days = (struct List*)malloc(month[i].days * sizeof(struct List));
+        if (!month[i].work_days)
             return NULL;
-        for (j = 0; j < LISTS; j++)
-            month[i].list[j].set = false;
-        for (j = 0; j < LISTS; j++)
-            month[i].list[j].day = -1;
     }
+
+    for (i = 0; i < MONTHS; i++)
+        for (j = 0; j < month[i].days; j++) {
+            month[i].work_days[j].work_list = (struct Work*)malloc(LISTS * sizeof(struct Work));
+            if (!month[i].work_days[j].work_list)
+                return NULL;
+        }
+    for (i = 0; i < MONTHS; i++)
+        for (j = 0; j < month[i].days; j++)
+            for (k = 0; k < LISTS; k++)
+                month[i].work_days[j].work_list[k].set = false;
 
     return month;
 }
@@ -131,8 +147,8 @@ static struct Months* init(void)
 static inline void addNewEntry(struct Months* month)
 {
     int i, day;
-    static int j = 0, last = -1;
-    char str[SIZE], c[13];
+    static int k = 0, last = -1;
+    char str[SIZE], c[2];
 
     clear();
 
@@ -165,45 +181,69 @@ retry_day:
     }
 
     if (last != i)
-        j = 0;
+        k = 0;
+
+    if (k == 20) {
+        printf("You can't add any more items");
+        return;
+    }
 
     ClearInputBuffer();
     printf("What task?\n");
     fgets(str, sizeof(str), stdin);
-    strcpy(month[i - 1].list[j].task, str);
+    strcpy(month[i - 1].work_days[day - 1].work_list[k].task, str);
 
-    month[i - 1].list[j].day = day;
-    month[i - 1].list[j].set = true;
+    month[i - 1].work_days[day - 1].work_list[k].set = true;
 
-    ++j;
+    ++k;
     last = i;
     clear();
 }
 
 static void readAllEntries(struct Months* month, unsigned int flags, unsigned int month_number, unsigned int day_number)
 {
-    int i, j;
+    int i, j, k;
 
     clear();
 
     if (flags == ALL)
         for (i = 0; i < MONTHS; i++)
-            for (j = 0; j < LISTS; j++)
-                if (month[i].list[j].set) {
-                    printf("On month %d, on day %d you have: \n", i + 1, month[i].list[j].day);
-                    printf("%d. %s\n", j + 1, month[i].list[j].task);
+            for (j = 0; j < month[i].days; j++)
+                for (k = 0; k < LISTS; k++)
+                if (month[i].work_days[j].work_list[k].set) {
+                    printf("On month %d, on day %d you have: \n", i + 1, j + 1);
+                    printf("%d. %s\n", k + 1, month[i].work_days[j].work_list[k].task);
                 }
-    if (flags == MONTH)
-        for (j = 0; j < LISTS; j++)
-            if (month[month_number - 1].list[j].set) {
-                printf("On month %d, on day %d you have: \n", month_number, month[month_number - 1].list[j].day);
-                printf("%d. %s\n", j + 1, month[month_number - 1].list[j].task);
-            }
+
+    if (flags == MONTH) {
+        for (j = 0; j < month[month_number - 1].days; j++) {
+            printf(RESET);
+            if (j == getCurrentDate(false) - 1)
+                printf(GREEN);
+            for (k = 0; k < LISTS; k++)
+                if (month[month_number - 1].work_days[j].work_list[k].set)
+                    if (j == getCurrentDate(false) - 1)
+                        printf(YELLOW);
+                    else
+                        printf(RED);
+            printf("%d ", j + 1);
+            if (!(j % 10) && j)
+                printf("\n");
+        }
+        printf("\n\n\n");
+        for (j = 0; j < month[month_number - 1].days; j++)
+            for (k = 0; k < LISTS; k++)
+                if (month[month_number - 1].work_days[j].work_list[k].set) {
+                    printf("On month %d, on day %d you have: \n", month_number, j + 1);
+                    printf("%d. %s\n", k + 1, month[month_number - 1].work_days[j].work_list[k].task);
+                }
+    }
+
     if (flags == DAY)
-        for (j = 0; j < LISTS; j++)
-            if (month[month_number - 1].list[j].set && month[month_number - 1].list[j].day == day_number) {
-                printf("On month %d, on day %d you have: \n", month_number, month[month_number - 1].list[j].day);
-                printf("%d. %s\n", j + 1, month[month_number - 1].list[j].task);
+        for (k = 0; k < LISTS; k++)
+            if (month[month_number - 1].work_days[day_number - 1].work_list[k].set) {
+                printf("On month %d, on day %d you have: \n", month_number, day_number);
+                printf("%d. %s\n", k + 1, month[month_number - 1].work_days[day_number - 1].work_list[k].task);
             }
 }
 
@@ -211,7 +251,7 @@ static inline void readEntry(struct Months* month)
 {
     unsigned int flags = 0, month_number = 0, day_number = 0;
     int val;
-    char c, x[13];
+    char c, x[2];
 
     clear();
 
@@ -253,9 +293,9 @@ static inline void readEntry(struct Months* month)
 
 static inline void removeEntry(struct Months* month)
 {
-    unsigned int month_number, entry_number;
+    unsigned int month_number, entry_number, day_number;
     int val;
-    char c[13];
+    char c[2];
 
     readAllEntries(month, ALL, 0, 0);
 
@@ -268,19 +308,24 @@ static inline void removeEntry(struct Months* month)
     c[strlen(c)] = '\0';
     val = atoi(c);
     (!val) ? (month_number = getCurrentDate(true)) : (month_number = val);
+    printf("Which day?\n");
+    printf("Say 'C' for current day\n");
+    (void)scanf("%s", &c);
+    c[strlen(c)] = '\0';
+    val = atoi(c);
+    (!val) ? (day_number = getCurrentDate(false)) : (day_number = val);
     printf("Which entry?\n");
     (void)scanf("%d", &entry_number);
 
-    if (month[month_number - 1].list[entry_number - 1].set) {
-        memset(month[month_number - 1].list[entry_number - 1].task, 0, SIZE);
-        month[month_number - 1].list[entry_number - 1].set = false;
-        month[month_number - 1].list[entry_number - 1].day = -1;
+    if (month[month_number - 1].work_days[day_number - 1].work_list[entry_number - 1].set) {
+        memset(month[month_number - 1].work_days[day_number - 1].work_list[entry_number - 1].task, 0, SIZE);
+        month[month_number - 1].work_days[day_number - 1].work_list[entry_number - 1].set = false;
     }
 }
 
 static void writeFile(struct Months* month)
 {
-    int i, j;
+    int i, j, k;
     FILE* file;
 
     file = fopen("to-do.txt", "w");
@@ -288,9 +333,10 @@ static void writeFile(struct Months* month)
         return;
 
     for (i = 0; i < MONTHS; i++)
-        for (j = 0; j < LISTS; j++)
-            if (month[i].list[j].set)
-                fprintf(file, "%d %d %d %s\n", i, j, month[i].list[j].day, month[i].list[j].task);
+        for (j = 0; j < month[i].days; j++)
+            for (k = 0; k < LISTS; k++)
+                if (month[i].work_days[j].work_list[k].set)
+                    fprintf(file, "%d %d %d %s\n", i, k, j, month[i].work_days[j].work_list[k].task);
 
     fclose(file);
 }
@@ -307,9 +353,8 @@ static void readFile(struct Months* month)
 
     while (fscanf(file, "%d %d %d", &i, &j, &day) != EOF) {
         fgets(str, SIZE, file);
-        month[i].list[j].day = day;
-        strcpy(month[i].list[j].task, str);
-        month[i].list[j].set = true;
+        strcpy(month[i].work_days[day].work_list[j].task, str);
+        month[i].work_days[day].work_list[j].set = true;
     }
 
     fclose(file);
@@ -317,11 +362,21 @@ static void readFile(struct Months* month)
 
 static void freeMem(struct Months* month)
 {
-    int i;
+    int i, j;
 
     for (i = 0; i < MONTHS; i++)
-        free(month[i].list);
+        for (j = 0; j < month[i].days; j++)
+            free(month[i].work_days[j].work_list);
+
+    for (i = 0; i < MONTHS; i++)
+        free(month[i].work_days);
+
     free(month);
+}
+
+static inline void setColor(char* c)
+{
+    printf("%s", c);
 }
 
 static inline int getCurrentDate(bool date)
